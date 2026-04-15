@@ -3,14 +3,8 @@
 import Display
 import Buttons
 import Events
-import Photo
+import Sensors
 import Image
-from machine import ADC, Pin
-
-# set up the ADCs for measuring battery voltage
-vbat_adc = ADC(29)
-vref_adc = ADC(28)
-usb_power = Pin(24, Pin.IN)         # reading GP24 tells us whether or not USB power is connected
 
 # Reference voltages for a full/empty battery, in volts
 # the values could vary by battery size/manufacturer so you might need to adjust them
@@ -28,22 +22,12 @@ nub_size = 8
 nub_radius = 2
 
 battery_percentage = 100
-usb_connected = usb_power.value()
+usb_connected = Sensors.usb_connected()
 
 def calc_battery():
     global battery_percentage, usb_connected
     # Enable the onboard voltage reference
-    vref_en = Photo._get_pin27()
-    vref_en.value(1)
-
-    # Calculate the logic supply voltage, as will be lower that the usual 3.3V when running off low batteries
-    vdd = 1.24 * (65535 / vref_adc.read_u16())
-    vbat = (
-        (vbat_adc.read_u16() / 65535) * 3 * vdd
-    )  # 3 in this is a gain, not rounding of 3.3V
-
-    # Disable the onboard voltage reference
-    vref_en.value(0)
+    vbat = Sensors.batt_level()
 
     # Print out the voltage
     #print("Battery Voltage = ", vbat, "V", sep="")
@@ -56,11 +40,10 @@ def calc_battery():
         percentage = 0
         
     battery_changed = int(battery_percentage) != int(percentage)
-    usb_state = usb_power.value()
-    usb_changed = usb_connected != usb_state
+    usb_changed = usb_connected != Sensors.usb_connected()
 
     battery_percentage = percentage
-    usb_connected = usb_state
+    usb_connected = Sensors.usb_connected()
 
     return battery_changed or usb_changed
 

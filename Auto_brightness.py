@@ -1,7 +1,7 @@
 import time
 import Events
 import Display
-import Photo
+import Sensors
 
 last_display_brightness_update = 0
 _initialized = False
@@ -11,10 +11,9 @@ def auto_brightness():
     now = time.ticks_ms()
     if not _initialized or time.ticks_diff(now, last_display_brightness_update) > 500:
         _initialized = True
-        lux = Photo.level()
+        lux = Sensors.lux_level()
         Display.auto_brightness(lux)
         last_display_brightness_update = now
-
 
 auto_brightness_event = (auto_brightness, 0)
 
