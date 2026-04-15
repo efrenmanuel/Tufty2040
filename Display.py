@@ -1,7 +1,9 @@
-import Events
 from picographics import PicoGraphics, DISPLAY_TUFTY_2040
 
 display = PicoGraphics(display=DISPLAY_TUFTY_2040)
+
+WIDTH = 320
+HEIGHT = 240
 
 WHITE = display.create_pen(255, 255, 255)
 BLACK = display.create_pen(0, 0, 0)
@@ -23,6 +25,20 @@ set_color = display.set_pen
 text = display.text
 update = display.update
 get_bounds = display.get_bounds
+set_clip = display.set_clip
+remove_clip = display.remove_clip
+pixel_span = display.pixel_span
+circle = display.circle
+
+# Partial update support — only pushes a sub-rectangle over SPI.
+# Falls back to full update if firmware doesn't support it.
+_has_partial = hasattr(display, 'partial_update')
+
+def partial_update(x, y, w, h):
+    if _has_partial:
+        display.partial_update(x, y, w, h)
+    else:
+        display.update()
 
 def rounded_rectangle(x, y, w, h, radius):
     
@@ -43,11 +59,10 @@ def update_brightness(new_brightness):
     if (abs(new_brightness-brightness)>=0.05):
         brightness=new_brightness
         display.set_backlight(brightness) # has to be between .3 and .99
-        print(brightness)
 
 def clear(color=BLACK):
     display.set_pen(color)
-    display.clear()
+    #display.clear()
         
 def auto_brightness(lux):
     new_brightness=((lux/50000)**.4)*.63+.32
@@ -57,7 +72,6 @@ def auto_brightness(lux):
 def Init():
     display_clear_event = (clear, -1)
 
-    display_update_event = (update, 99999)
-
-    Events.add_ui_event(display_clear_event)
-    Events.add_ui_event(display_update_event)
+    #Events.add_ui_event(display_clear_event)
+    # display.update() is called explicitly by Events.run_queues()
+    # after both UI and overlay drawing are complete

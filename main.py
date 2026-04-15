@@ -1,21 +1,22 @@
 import time
 import Clock
-#import Image
 import Display
 import Auto_brightness
 import Battery
 import Buttons
 import Events
 import Menu
-#import Test3d
+import _thread
+import machine
 
-from pimoroni import Button
-
-display = Display.display
+running = True
  
-updates_per_second = 100
-seconds_per_update = 1/updates_per_second
-last_update = Clock.get_time_millis()
+updates_per_second = 60
+milliseconds_per_update = max(1, int(1000 / updates_per_second))
+
+screen_refresh_rate = 60
+milliseconds_per_refresh = max(1, int(1000 / screen_refresh_rate))
+
 
 def Init():
     #Initialize every module we want to use
@@ -29,12 +30,52 @@ Init()
 #force first updates
 Events.update_no_ui()
 Events.update_ui()
-
-while True:
-    Events.run_queues(Buttons.update_needed())
-    Clock.tick()
-
-    time.sleep((last_update + seconds_per_update*1000 - Clock.get_time_millis())/1000)
-    last_update = Clock.get_time_millis()
+Display.update()
 
 
+def loop(events):
+    next_refresh = time.ticks_ms()
+    while running:
+        events.run_queues()
+
+        next_refresh = time.ticks_add(next_refresh, milliseconds_per_refresh)
+        remaining = time.ticks_diff(next_refresh, time.ticks_ms())
+        if remaining > 1:
+            time.sleep_ms(remaining)
+        else:
+            next_refresh = time.ticks_ms()
+            time.sleep_ms(1)
+
+def bg_loop(events):
+    global running
+    next_update = time.ticks_ms()
+    
+    try:
+        while running:
+            events.run_bg_queues()
+            Clock.tick()
+
+            next_update = time.ticks_add(next_update, milliseconds_per_update)
+            remaining = time.ticks_diff(next_update, time.ticks_ms())
+            if remaining > 1:
+                time.sleep_ms(remaining)
+            else:
+                next_update = time.ticks_ms()
+                time.sleep_ms(1)
+    except Exception:
+        running = False
+        
+def stop():
+    global running
+    running=False
+
+if __name__ == "__main__":
+    Buttons.on_press(Buttons.BOOT, stop)
+    try:
+        BGThread = _thread.start_new_thread(bg_loop, (Events,))
+        loop(Events) # doesn't return
+    except KeyboardInterrupt:
+        machine.reset()
+    while True:
+        time.sleep(10)
+        
