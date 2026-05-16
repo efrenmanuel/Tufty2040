@@ -1,4 +1,5 @@
 import Display
+import Events
 import os
 import time
 from jpegdec import JPEG
@@ -15,6 +16,7 @@ slide_counter = 0
 slide_time = 1
 list_files=[]
 last_slide_time = 0
+_current_display_image = None
 def load_image_list():
     for file in os.listdir(""):
     # check only image files
@@ -28,9 +30,13 @@ def load_set_image_list():
 
 def slide_increase():
     global slide_counter
+    if not list_files:
+        return
     slide_counter += 1
     if slide_counter == len(list_files):
         slide_counter = 0
+    invalidate_display()
+    Events.request_ui_update()
 
 
 def decrease_slide_time():
@@ -38,40 +44,52 @@ def decrease_slide_time():
     slide_time-=0.1
     if slide_time<=0:
         slide_time=0.1
+    return True
 
 def increase_slide_time():
-    print("increase")
     global slide_time
     slide_time+=0.1
+    return True
 
 
-def slide_show(time):
+def invalidate_display():
+    global _current_display_image
+    _current_display_image = None
+
+def slide_show(now):
     global last_slide_time
-    #print(last_slide_time)
-    print(slide_time*1000)
-    #print(time)
-    if (last_slide_time + slide_time*1000) < time:
-        #print("increase")
-        last_slide_time = time
+    if time.ticks_diff(now, last_slide_time) > slide_time * 1000:
+        last_slide_time = now
         slide_increase()
         return True
     return False
     
 def show_slide():
-    #print(slide_counter)
-    j.open_file(list_files[slide_counter])
-    j.decode()
+    global _current_display_image
+    if not list_files:
+        return
+    target = list_files[slide_counter]
+    if _current_display_image != target:
+        j.open_file(target)
+        j.decode()
+        _current_display_image = target
         
 def show_image(image_name):
-    #print(slide_counter)
-    j.open_file(image_name+".jpg")
-    j.decode()
+    global _current_display_image
+    filename = image_name+".jpg"
+    if _current_display_image != filename:
+        j.open_file(filename)
+        j.decode()
+        _current_display_image = filename
 
         
 def show_hidden_image(image_name):
-    #print(slide_counter)
-    j.open_file(image_name+".jpg_")
-    j.decode()
+    global _current_display_image
+    filename = image_name+".jpg_"
+    if _current_display_image != filename:
+        j.open_file(filename)
+        j.decode()
+        _current_display_image = filename
     
 def show_slide_delay():
     Display.set_color(Display.WHITE)

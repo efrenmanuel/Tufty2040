@@ -6,10 +6,12 @@ import Buttons
 import Battery
 
 
+active = False
+
+
 def start_slides():
-    Slides.Init()
-    print("slides")
     Close()
+    Slides.Init()
 
 options=[("a) Images", start_slides),("b)",lambda:None), ("c)",lambda:None)]
 
@@ -20,19 +22,19 @@ def show_menu_bg():
 show_menu_bg_event = (show_menu_bg,1)
 
 def show_options():
-    line = 0
-    for option in range(0,len(options)):
+    y = 10
+    for option in range(len(options)):
         if option == selected:
             Display.set_color(Display.WHITE)
         else:
             Display.set_color(Display.BLUE)
-        Display.rounded_rectangle(10, 10+38*line, 200,28,3)
+        Display.rounded_rectangle(10, y, 200,28,3)
         if option == selected:
             Display.set_color(Display.BLUE)
         else:
             Display.set_color(Display.WHITE)
-        Display.text(options[option][0], 15, 13+38*line, 240, 3)
-        line+=1
+        Display.text(options[option][0], 15, y+3, 240, 3)
+        y+=38
 
 show_options_event = (show_options,999)
 
@@ -43,14 +45,21 @@ def down():
     global selected
     selected+=1
     selected = selected % len(options)
+    Events.request_ui_update()
     
 def up():
     global selected
     selected-=1
     selected = selected % len(options)
+    Events.request_ui_update()
     
 
 def Init():
+    global active
+    if active:
+        return
+    active = True
+
     Buttons.rem_on_release(Buttons.BOOT, Init)
     Events.add_ui_event(show_menu_bg_event)
     Events.add_ui_event(show_options_event)
@@ -60,6 +69,11 @@ def Init():
     Buttons.on_press(Buttons.B , select)
 
 def Close():
+    global active
+    if not active:
+        return
+    active = False
+
     Buttons.on_release(Buttons.BOOT, Init)
     Events.remove_ui_event(show_menu_bg_event)  
     Events.remove_ui_event(show_options_event)

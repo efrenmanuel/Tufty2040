@@ -12,45 +12,79 @@ buttons = [Button(7, invert=False), Button(8, invert=False), Button(9, invert=Fa
 press_actions = [[],[],[],[],[],[],]
 release_actions = [[],[],[],[],[],[],]
 pressed = [False,False,False,False,False,False]
+_num_buttons = len(buttons)
+_deferred_ops = []
+_in_callback = False
 
-def update_needed():
-    global buttons, pressed
-    for button in range(0, len(buttons)):
-        if (buttons[button].is_pressed and not pressed[button]) or (pressed[button] and not buttons[button].is_pressed):
-            return True
-    return False
+def _flush_deferred():
+    global _deferred_ops
+    ops = _deferred_ops
+    _deferred_ops = []
+    for op, args in ops:
+        op(*args)
 
 def call_actions():
+    global _in_callback
     result = False
-    for button in range(0, len(buttons)):
-        if buttons[button].is_pressed  and not pressed[button]:
+    _in_callback = True
+    for button in range(_num_buttons):
+        is_pressed = buttons[button].is_pressed
+        if is_pressed and not pressed[button]:
             pressed[button] = True
-            for action in press_actions[button]:
+            for action in list(press_actions[button]):
                 action()
             result = True
-        elif pressed[button] and not buttons[button].is_pressed:
+        elif pressed[button] and not is_pressed:
             pressed[button] = False
-            for action in release_actions[button]:
+            for action in list(release_actions[button]):
                 action()
+            result = True
+    _in_callback = False
+    if _deferred_ops:
+        _flush_deferred()
     return result
 
 def on_press(button, funct):
-    press_actions[button].append(funct)
-    print(press_actions)
+    if _in_callback:
+        _deferred_ops.append((_do_on_press, (button, funct)))
+        return
+    _do_on_press(button, funct)
+
+def _do_on_press(button, funct):
+    if funct not in press_actions[button]:
+        press_actions[button].append(funct)
     
 def on_release(button, funct):
-    release_actions[button].append(funct)
-    print(release_actions)
+    if _in_callback:
+        _deferred_ops.append((_do_on_release, (button, funct)))
+        return
+    _do_on_release(button, funct)
+
+def _do_on_release(button, funct):
+    if funct not in release_actions[button]:
+        release_actions[button].append(funct)
     
 def rem_on_press(button, funct):
+    if _in_callback:
+        _deferred_ops.append((_do_rem_on_press, (button, funct)))
+        return
+    _do_rem_on_press(button, funct)
+
+def _do_rem_on_press(button, funct):
     if funct in press_actions[button]:
         press_actions[button].remove(funct)
     
 def rem_on_release(button, funct):
+    if _in_callback:
+        _deferred_ops.append((_do_rem_on_release, (button, funct)))
+        return
+    _do_rem_on_release(button, funct)
+
+def _do_rem_on_release(button, funct):
     if funct in release_actions[button]:
         release_actions[button].remove(funct)
     
 button_event = (call_actions, -2)
 
 def Init():
-    Events.add_pre_ui_event(button_event)
+    Events.add_timer_event_no_update(button_event)
